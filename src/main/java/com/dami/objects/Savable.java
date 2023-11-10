@@ -20,9 +20,7 @@ public abstract class Savable{
     private final int instanceNumber;
 
     //path to save config to
-    public static String getPath(){
-        return "config/";
-    }
+    private static String basePath = "config/";
 
     //input field for what you want to save
     public abstract Map<String, Object> saveToYaml();
@@ -39,7 +37,30 @@ public abstract class Savable{
 
     public CompletableFuture<Void> saveToFileAsync() {
         return CompletableFuture.runAsync(() -> {
-            String filePath = getPath() + this.getClass().getSimpleName() + "/" + instanceNumber + ".yml";
+            String filePath = basePath + this.getClass().getSimpleName() + "/" + instanceNumber + ".yml";
+            File file = new File(filePath);
+
+            // Create the directory structure if it doesn't exist
+            File parentDirectory = file.getParentFile();
+            if (parentDirectory != null && !parentDirectory.exists()) {
+                if (!parentDirectory.mkdirs()) {
+                    System.out.println("Failed to create directory: " + parentDirectory.getAbsolutePath());
+                    return; // Unable to create the directory, exit the method
+                }
+            }
+
+            try (FileWriter writer = new FileWriter(file)) {
+                writer.write(getDataString());
+                System.out.println("Data saved to: " + filePath);
+            } catch (IOException e) {
+                System.out.println("Error while saving data to " + filePath + ": " + e);
+            }
+        });
+    }
+
+    public CompletableFuture<Void> saveToFileAsync(String name) {
+        return CompletableFuture.runAsync(() -> {
+            String filePath = basePath + this.getClass().getSimpleName() + "/" + name + ".yml";
             File file = new File(filePath);
 
             // Create the directory structure if it doesn't exist
@@ -89,7 +110,7 @@ public abstract class Savable{
     }
 
     public static <T extends Savable> T loadFromFile(Class<T> clazz, String fileName) {
-        try (FileReader reader = new FileReader(fileName)) {
+        try (FileReader reader = new FileReader(basePath + fileName)) {
             StringBuilder content = new StringBuilder();
             int data;
             while ((data = reader.read()) != -1) {
@@ -97,7 +118,7 @@ public abstract class Savable{
             }
             return loadFromYaml(clazz, content.toString());
         } catch (IOException e) {
-            e.printStackTrace();
+            System.out.println("the file doesnt exist yet");
             return null;
         }
     }
@@ -118,5 +139,13 @@ public abstract class Savable{
         }
 
         return resultList;
+    }
+
+    public static void setbasePath(String newPath){
+        Savable.basePath = newPath;
+    }
+
+    public static String getbasePath(){
+        return basePath;
     }
 }
